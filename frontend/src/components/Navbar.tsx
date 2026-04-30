@@ -67,13 +67,19 @@ function ProfileDialog({ onClose, onLogout }: { onClose: () => void; onLogout: (
 export default function Navbar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [dark, setDark] = useState<boolean>(() => localStorage.getItem('theme') === 'dark');
   const [showProfile, setShowProfile] = useState(false);
+  
+  // Initialize theme from localStorage or default to dark
+  const [isLight, setIsLight] = useState(() => {
+    const saved = localStorage.getItem('theme');
+    return saved === 'light';
+  });
 
   useEffect(() => {
-    document.documentElement.dataset.theme = dark ? 'dark' : 'light';
-    localStorage.setItem('theme', dark ? 'dark' : 'light');
-  }, [dark]);
+    const theme = isLight ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [isLight]);
 
   async function handleLogout() {
     setShowProfile(false);
@@ -86,17 +92,27 @@ export default function Navbar() {
       <header className="navbar">
         <div className="navbar-inner">
           <Link to="/projects" className="navbar-brand">
-            TaskFlow
+            <svg className="navbar-logo" width="20" height="20" viewBox="0 0 32 32" fill="none">
+              <rect width="32" height="32" rx="8" fill="var(--primary)"/>
+              <path d="M9 10h14M16 10v14" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Taskly
           </Link>
 
           <div className="navbar-end">
-            <button
-              className="ghost small"
-              onClick={() => setDark(d => !d)}
-              aria-label="Toggle dark mode"
-            >
-              {dark ? 'Light' : 'Dark'}
-            </button>
+            <label className="theme-switch" title="Toggle Theme">
+              <input 
+                type="checkbox" 
+                checked={isLight} 
+                onChange={() => setIsLight(!isLight)} 
+              />
+              <span className="theme-slider">
+                <div className="theme-slider-icons">
+                  <span>🌙</span>
+                  <span>☀️</span>
+                </div>
+              </span>
+            </label>
 
             {user && (
               <button

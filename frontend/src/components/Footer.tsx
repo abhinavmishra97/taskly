@@ -2,7 +2,7 @@ export default function Footer() {
   return (
     <footer className="app-footer">
       <p>
-        <span className="footer-cta">we should keep this guy in our team, should say you</span>
+        © {new Date().getFullYear()} <strong>Taskly</strong>. Simple task management.
       </p>
     </footer>
   );

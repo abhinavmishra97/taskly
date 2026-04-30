@@ -25,7 +25,6 @@ export default function App() {
             {/* Catch-all */}
             <Route path="*" element={<Navigate to="/projects" replace />} />
           </Routes>
-          <Footer />
         </div>
       </BrowserRouter>
     </AuthProvider>
