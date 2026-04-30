@@ -1,4 +1,4 @@
-# TaskFlow — docker-compose.yml
+# Taskly — docker-compose.yml
 # Usage:
 #   cp .env.example .env   (edit values if desired)
 #   docker compose up
@@ -15,15 +15,15 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER:     ${DB_USER:-taskflow}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-taskflow_password}
-      POSTGRES_DB:       ${DB_NAME:-taskflow}
+      POSTGRES_USER:     ${DB_USER:-taskly}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-taskly_password}
+      POSTGRES_DB:       ${DB_NAME:-taskly}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
       - "${DB_PORT_EXPOSE:-5432}:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-taskflow} -d ${DB_NAME:-taskflow}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-taskly} -d ${DB_NAME:-taskly}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -41,9 +41,9 @@ services:
       JWT_SECRET:   ${JWT_SECRET}
       DB_HOST:      postgres
       DB_PORT:      5432
-      DB_USER:      ${DB_USER:-taskflow}
-      DB_PASSWORD:  ${DB_PASSWORD:-taskflow_password}
-      DB_NAME:      ${DB_NAME:-taskflow}
+      DB_USER:      ${DB_USER:-taskly}
+      DB_PASSWORD:  ${DB_PASSWORD:-taskly_password}
+      DB_NAME:      ${DB_NAME:-taskly}
       DB_SSLMODE:   ${DB_SSLMODE:-disable}
     ports:
       - "${PORT:-8080}:8080"
@@ -61,9 +61,9 @@ services:
       JWT_SECRET:   ${JWT_SECRET}
       DB_HOST:      postgres
       DB_PORT:      5432
-      DB_USER:      ${DB_USER:-taskflow}
-      DB_PASSWORD:  ${DB_PASSWORD:-taskflow_password}
-      DB_NAME:      ${DB_NAME:-taskflow}
+      DB_USER:      ${DB_USER:-taskly}
+      DB_PASSWORD:  ${DB_PASSWORD:-taskly_password}
+      DB_NAME:      ${DB_NAME:-taskly}
       DB_SSLMODE:   ${DB_SSLMODE:-disable}
     depends_on:
       api:

@@ -1,100 +1,51 @@
-# TaskFlow
+# Taskly
 
 A task management system where users can register, create projects, add tasks, and assign them to teammates.
 
-**Stack:** Go · PostgreSQL · React + TypeScript + Vite · Docker
+**Stack:** Node.js · Supabase (PostgreSQL) · React + TypeScript + Vite · Docker
 
 ---
 
 ## 1. Overview
 
-TaskFlow is a full-stack application built around a RESTful Go API and a React SPA. The backend follows a layered handler → service → repository architecture connected to PostgreSQL via `pgx/v5`. Authentication uses 24-hour JWT access tokens plus 30-day refresh tokens (stored as SHA-256 hashes) to support real logout and token rotation. The frontend is a Vite + React + TypeScript app served through nginx.
+Taskly is a full-stack task management application built with a Node.js/Express backend and a React SPA frontend. The backend connects to Supabase (PostgreSQL) for data persistence and uses JWT-based authentication with access and refresh tokens. The frontend is a Vite + React + TypeScript app featuring a modern, minimal UI with dark/light theme support, a Kanban board with drag-and-drop, and real-time updates via Server-Sent Events.
 
 | Layer | Choice |
 |---|---|
-| API | Go + chi router |
-| Database | PostgreSQL 16 + pgx/v5 (connection pool) |
-| Migrations | golang-migrate (embedded, auto-run on start) |
-| Logging | zap (structured JSON in prod, pretty in dev) |
-| Auth | JWT HS256 + opaque refresh tokens |
-| Frontend | React 19 + TypeScript + Vite + oat.ink |
+| API | Node.js + Express |
+| Database | Supabase (PostgreSQL) |
+| Auth | JWT HS256 + refresh tokens |
+| Frontend | React 19 + TypeScript + Vite |
+| Styling | Custom CSS with CSS Variables |
 
 ---
 
-## 2. Architecture Decisions
+## 2. Features
 
-**Layered backend (handler → service → repository)**
-Each layer has one job: handlers parse HTTP, services enforce business rules, repositories talk to Postgres. This keeps SQL out of business logic and makes each layer independently testable.
-
-**Stateful refresh tokens**
-Pure JWT can't be revoked. We issue a short-lived access token + a 30-day refresh token stored as a SHA-256 hash. On refresh the old token is atomically revoked, enabling real logout and future theft detection.
-
-**Avoiding circular imports with a closure**
-`task.Service` needs a project's `owner_id` for delete authorization, but importing `project` from `task` creates a cycle. We inject a `getOwnerID func(ctx, id) (uuid, error)` closure from `main.go` — zero overhead, no reflection.
-
-**All projects visible to all authenticated users**
-The spec says "list projects the user owns or has tasks in." In practice this creates a chicken-and-egg problem: a user can't be assigned to a task on a project they can't see. Since the spec also says users should assign tasks to themselves or others, the intent is a shared workspace. Ownership still controls who can edit or delete.
-
-**`need_review` and `resolved` instead of `done`**
-Extended the spec's `todo | in_progress | done` to `todo | in_progress | need_review | resolved` to reflect a real review workflow — a task under review is meaningfully different from one that is signed off. This is an intentional product improvement.
+- **Authentication** — Register, login, logout with JWT access + refresh token rotation
+- **Projects** — Create, edit, delete projects with ownership control
+- **Kanban Board** — Drag-and-drop tasks across 4 status columns (To Do, In Progress, Review, Done)
+- **Task Management** — Create, edit, assign, prioritize, and set due dates for tasks
+- **Real-time Updates** — Server-Sent Events for live task synchronization
+- **Dark/Light Theme** — Smooth animated theme switching with localStorage persistence
+- **Responsive Design** — Works across desktop, tablet, and mobile
+- **Activity Feed** — Track project activity and task changes
 
 ---
 
 ## 3. Running Locally
 
-> **Prerequisites:** Docker and Docker Compose only.
+> **Prerequisites:** Node.js 18+, npm
+
+### Backend
 
 ```bash
-# 1. Clone
-git clone https://github.com/yashj29/assignment-EtharaAi
-cd assignment-EtharaAi
-
-# 2. Configure environment
-cp .env.example .env
-# Minimum: set a real JWT_SECRET
-# openssl rand -hex 32   ← paste result into .env as JWT_SECRET
-
-# 3. Start everything
-docker compose up
-
-# Frontend  →  http://localhost:3000
-# API       →  http://localhost:8080
-# Health    →  http://localhost:8080/health
-```
-
-The `seed` service inserts demo data automatically on first run. To re-seed:
-
-```bash
-docker compose run --rm seed
-```
-
----
-
-## 4. Running Without Docker
-
-> **Prerequisites:** Go 1.23+, Node 20+, and a running PostgreSQL instance (or just spin up the DB container).
-
-**Backend**
-
-```bash
-# Start only the database
-docker compose up postgres -d
-
-# In the backend directory
 cd backend
-ENV=development \
-JWT_SECRET=dev-secret \
-DB_HOST=localhost \
-DB_PORT=5432 \
-DB_USER=taskflow \
-DB_PASSWORD=taskflow_password \
-DB_NAME=taskflow \
-DB_SSLMODE=disable \
-PORT=8080 \
-go run ./cmd/server/main.go
+npm install
+npm run dev   # http://localhost:3000 (or configured port)
 ```
 
-**Frontend**
+### Frontend
 
 ```bash
 cd frontend
@@ -102,23 +53,46 @@ npm install
 npm run dev   # http://localhost:5173
 ```
 
-The Vite dev server proxies API calls to `http://localhost:8080` by default via `VITE_API_URL`.
+The Vite dev server proxies API calls to the backend via `VITE_API_URL`.
 
 ---
 
-## 5. Running Migrations (standalone)
+## 4. Environment Variables
 
-Migrations run **automatically** when the API container starts — nothing to do manually.
+Create a `.env` file in the root directory:
 
-To run them against a standalone Postgres:
+```env
+# Supabase
+SUPABASE_URL=your_supabase_url
+SUPABASE_SERVICE_KEY=your_supabase_service_key
+
+# JWT
+JWT_SECRET=your_jwt_secret
+# Generate with: openssl rand -hex 32
+
+# Server
+PORT=3000
+ENV=development
+
+# Frontend
+VITE_API_URL=http://localhost:3000
+```
+
+---
+
+## 5. Running with Docker
 
 ```bash
-go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+# 1. Configure environment
+cp .env.example .env
+# Set your JWT_SECRET and Supabase credentials
 
-migrate \
-  -path ./backend/migrations \
-  -database "postgres://taskflow:taskflow_password@localhost:5432/taskflow?sslmode=disable" \
-  up
+# 2. Start everything
+docker compose up
+
+# Frontend  →  http://localhost:3000
+# API       →  http://localhost:8080
+# Health    →  http://localhost:8080/health
 ```
 
 ---
@@ -130,13 +104,13 @@ migrate \
 | Amit ji (project owner) | `test@example.com` | `password123` |
 | Narendra ji (teammate) | `narendra@example.com` | `password123` |
 
-Amit ji owns a **Website Redesign** project with three tasks in different statuses. Log in as Narendra ji to see he's assigned to one of them.
+Amit ji owns a **Website Redesign** project with tasks in different statuses. Log in as Narendra ji to see assigned tasks.
 
 ---
 
 ## 7. API Reference
 
-**Base URL:** `http://localhost:8080`  
+**Base URL:** `http://localhost:3000` (or your configured port)
 All protected endpoints require `Authorization: Bearer <access_token>`.
 
 ### Auth
@@ -185,27 +159,45 @@ All protected endpoints require `Authorization: Bearer <access_token>`.
 
 ---
 
-## 8. Integration Tests
+## 8. UI Design
 
-Tests live in `backend/integration/` and run against a real PostgreSQL database. They are skipped automatically when `INTEGRATION_DSN` is not set.
+Taskly features a premium, minimal design system inspired by Linear and Notion:
 
-```bash
-INTEGRATION_DSN="postgres://taskflow:taskflow_password@localhost:5433/taskflow?sslmode=disable" \
-JWT_SECRET=dev-secret \
-go test ./backend/integration/... -v -count=1
-```
-
-**21 subtests across 3 suites:**
-
-| Suite | Coverage |
-|---|---|
-| `TestAuth_RegisterAndLogin` | Register, duplicate email, login, wrong password, missing token, field validation |
-| `TestTasks_FullLifecycle` | Create, list, filter, invalid filter, update status, delete, 404 on deleted |
-| `TestAuthorization` | 401 vs 403 distinction, owner-only edits, non-creator task delete, 404 |
+- **Muted teal accent** (`#5b9a8b`) across all interactive elements
+- **Glassmorphism navbar** with backdrop blur
+- **Mouse-following glow** on the authentication pages
+- **Kanban columns** with subtle color-coded tints (gray, blue, amber, green)
+- **Smooth animations** — page transitions, card stagger, hover lifts
+- **8px spacing system** with consistent `10-14px` border radius
 
 ---
 
-## 9. What I'd Do With More Time
+## 9. Project Structure
+
+```
+taskly/
+├── backend/
+│   ├── server.js          # Express server entry point
+│   ├── routes/            # API route definitions
+│   ├── middleware/         # Auth middleware
+│   └── package.json
+├── frontend/
+│   ├── src/
+│   │   ├── pages/         # LoginPage, RegisterPage, ProjectsPage, ProjectDetailPage
+│   │   ├── components/    # Navbar, KanbanBoard, TaskModal, etc.
+│   │   ├── contexts/      # AuthContext
+│   │   ├── hooks/         # useProjects, useProjectSSE, useToast
+│   │   ├── api/           # API client functions
+│   │   └── index.css      # Design system + all styles
+│   └── index.html
+├── docker-compose.yml
+├── .env
+└── README.md
+```
+
+---
+
+## 10. What I'd Do With More Time
 
 **Security**
 - Rate limiting (token bucket per IP) on auth endpoints
@@ -215,5 +207,9 @@ go test ./backend/integration/... -v -count=1
 **Backend**
 - `GET /users/me` so the frontend doesn't have to decode the JWT client-side
 - Full-text task search (`?q=`)
-- Activity history: log every task change (status, assignee, priority) with who made it and when, so the whole team can see what happened and when
-- Image attachments in task descriptions, drag-and-drop image upload stored in S3, rendered inline in the task detail view
+- Activity history: log every task change with who made it and when
+
+**Frontend**
+- Notification system for task assignments
+- Keyboard shortcuts for power users
+- Mobile-optimized Kanban with swipe gestures

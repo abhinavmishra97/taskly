@@ -1,7 +1,7 @@
 {
-  "name": "taskflow-backend",
+  "name": "taskly-backend",
   "version": "1.0.0",
-  "description": "Node.js Backend for TaskFlow",
+  "description": "Node.js Backend for Taskly",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
