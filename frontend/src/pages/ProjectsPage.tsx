@@ -77,7 +77,7 @@ export default function ProjectsPage() {
                 <ProjectCard
                   key={project.id}
                   project={project}
-                  isOwner={project.owner_id === user?.id}
+                  isOwner={project.owner_id === user?.id || user?.role === 'Admin'}
                   deleting={deletingId === project.id}
                   onEdit={() => { setEditProject(project); setShowModal(true); }}
                   onDelete={() => setConfirmDelete(project)}

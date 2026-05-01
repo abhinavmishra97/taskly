@@ -30,3 +30,18 @@ CREATE TABLE tasks (
   due_date TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Create task_history table (activity tracking)
+CREATE TABLE task_history (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  task_id UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  user_name TEXT NOT NULL DEFAULT '',
+  field TEXT NOT NULL,
+  old_value TEXT,
+  new_value TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_task_history_task_id ON task_history(task_id);
+CREATE INDEX idx_task_history_created_at ON task_history(created_at DESC);

@@ -1,10 +1,10 @@
 import { apiFetch } from './client';
 import type { AuthResponse } from '../types';
 
-export function register(name: string, email: string, password: string): Promise<AuthResponse> {
+export function register(name: string, email: string, password: string, role: 'Admin' | 'Member' = 'Member'): Promise<AuthResponse> {
   return apiFetch<AuthResponse>('/auth/register', {
     method: 'POST',
-    body: JSON.stringify({ name, email, password }),
+    body: JSON.stringify({ name, email, password, role }),
   });
 }
 

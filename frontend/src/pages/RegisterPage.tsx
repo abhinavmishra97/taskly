@@ -1,14 +1,17 @@
 import { useRef, useCallback, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { register } from '../api/auth';
+import { ApiError } from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function RegisterPage() {
-  const { register } = useAuth();
+  const { setAuth } = useAuth();
   const navigate = useNavigate();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState<'Admin' | 'Member'>('Member');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,10 +42,11 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      await register(name, email, password);
-      navigate('/projects');
+      const res = await register(name, email.trim().toLowerCase(), password, role);
+      setAuth(res.user, res.access_token, res.refresh_token);
+      navigate('/projects', { replace: true });
     } catch (err: any) {
-      if (err.fields) {
+      if (err instanceof ApiError && err.fields) {
         setFieldErrors(err.fields);
       } else {
         setError(err.message || 'Failed to create account. Please try again.');
@@ -154,6 +158,34 @@ export default function RegisterPage() {
                 </button>
               </div>
               {fieldErrors.password && <p className="error">{fieldErrors.password}</p>}
+            </div>
+
+            {/* ── Role Selector ── */}
+            <div>
+              <label htmlFor="role">Role</label>
+              <div className="role-selector">
+                <button
+                  type="button"
+                  className={`role-option ${role === 'Member' ? 'role-option--active' : ''}`}
+                  onClick={() => setRole('Member')}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="8" r="4"/>
+                    <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+                  </svg>
+                  Member
+                </button>
+                <button
+                  type="button"
+                  className={`role-option ${role === 'Admin' ? 'role-option--active' : ''}`}
+                  onClick={() => setRole('Admin')}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/>
+                  </svg>
+                  Admin
+                </button>
+              </div>
             </div>
 
             <button

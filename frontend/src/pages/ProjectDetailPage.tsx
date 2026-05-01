@@ -38,7 +38,7 @@ export default function ProjectDetailPage() {
   const [confirmDeleteProject, setConfirmDeleteProject] = useState(false);
   const [showActivity, setShowActivity] = useState(false);
 
-  const isOwner = project?.owner_id === user?.id;
+  const isOwner = project?.owner_id === user?.id || user?.role === 'Admin';
 
   // Load users
   useEffect(() => {

@@ -143,6 +143,62 @@ body { min-height: 100vh; }
 }
 .auth-hero:hover .auth-glow { opacity: 1; }
 
+/* ── Role Badge ──────────────────────────────────────────────────────────── */
+.role-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-top: 8px;
+}
+.role-badge--admin {
+  background: color-mix(in srgb, var(--primary) 18%, transparent);
+  color: var(--primary);
+  border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
+  box-shadow: 0 0 8px var(--primary-glow);
+}
+.role-badge--member {
+  background: color-mix(in srgb, var(--muted-foreground) 10%, transparent);
+  color: var(--muted-foreground);
+  border: 1px solid color-mix(in srgb, var(--muted-foreground) 18%, transparent);
+}
+
+/* ── Role Selector (Registration) ────────────────────────────────────────── */
+.role-selector {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+.role-option {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted-foreground);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.role-option:hover {
+  border-color: var(--primary);
+  color: var(--foreground);
+}
+.role-option--active {
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  border-color: var(--primary);
+  color: var(--primary);
+  box-shadow: 0 0 8px var(--primary-glow);
+}
+
 /* ── Auth Layout ──────────────────────────────────────────────────────────── */
 .auth-layout {
   height: 100vh; width: 100%;

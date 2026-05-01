@@ -31,6 +31,7 @@ function ProfileDialog({ onClose, onLogout }: { onClose: () => void; onLogout: (
 
       <div>
         <div className="profile-avatar">{user?.name?.charAt(0)?.toUpperCase() ?? '?'}</div>
+        <span className={`role-badge role-badge--${user?.role?.toLowerCase() || 'member'}`}>{user?.role || 'Member'}</span>
 
         <dl className="profile-list">
           <div className="profile-row">
@@ -40,6 +41,10 @@ function ProfileDialog({ onClose, onLogout }: { onClose: () => void; onLogout: (
           <div className="profile-row">
             <dt>Email</dt>
             <dd>{user?.email}</dd>
+          </div>
+          <div className="profile-row">
+            <dt>Role</dt>
+            <dd>{user?.role || 'Member'}</dd>
           </div>
           <div className="profile-row">
             <dt>Member since</dt>
