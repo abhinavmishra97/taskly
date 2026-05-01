@@ -1,0 +1,17 @@
+const { supabase, protect } = require('../../_helpers');
+
+module.exports = async function handler(req, res) {
+  if (req.method !== 'GET') return res.status(405).end();
+  const user = await protect(req, res);
+  if (!user) return;
+  const { id } = req.query;
+  try {
+    const { data: history, error } = await supabase.from('task_history')
+      .select('*').eq('task_id', id).order('created_at', { ascending: false });
+    if (error) throw error;
+    res.json({ history: history || [] });
+  } catch (e) {
+    if (e.code === 'PGRST205' || e.code === '42P01') return res.json({ history: [] });
+    res.status(500).json({ error: e.message });
+  }
+};

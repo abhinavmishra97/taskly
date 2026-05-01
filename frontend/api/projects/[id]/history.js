@@ -1,0 +1,34 @@
+const { supabase, protect } = require('../../_helpers');
+
+module.exports = async function handler(req, res) {
+  if (req.method !== 'GET') return res.status(405).end();
+  const user = await protect(req, res);
+  if (!user) return;
+  const { id } = req.query;
+  const limit  = parseInt(req.query.limit)  || 15;
+  const offset = parseInt(req.query.offset) || 0;
+
+  try {
+    const { data: tasks, error: taskErr } = await supabase
+      .from('tasks').select('id, title').eq('project_id', id);
+    if (taskErr) throw taskErr;
+    if (!tasks || tasks.length === 0) return res.json({ history: [], has_more: false });
+
+    const taskIds = tasks.map(function(t) { return t.id; });
+    const titleMap = {};
+    tasks.forEach(function(t) { titleMap[t.id] = t.title; });
+
+    const { data: history, error: histErr } = await supabase.from('task_history')
+      .select('*').in('task_id', taskIds)
+      .order('created_at', { ascending: false }).range(offset, offset + limit);
+    if (histErr) throw histErr;
+
+    const enriched = (history || []).map(function(h) {
+      return Object.assign({}, h, { task_title: titleMap[h.task_id] || 'Deleted task' });
+    });
+    res.json({ history: enriched, has_more: enriched.length > limit });
+  } catch (e) {
+    if (e.code === 'PGRST205' || e.code === '42P01') return res.json({ history: [], has_more: false });
+    res.status(500).json({ error: e.message });
+  }
+};
