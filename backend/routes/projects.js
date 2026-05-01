@@ -34,14 +34,26 @@ function canModifyProject(user, project) {
   return user.role === 'Admin' || project.owner_id === user.id;
 }
 
-// ── GET /projects — list all ────────────────────────────────────────────────
+// ── GET /projects — list with pagination + search ───────────────────────────
 router.get('/', protect, async (req, res) => {
   try {
-    const { data: projects, error } = await supabase
+    const page  = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit = Math.max(1, parseInt(req.query.limit) || 12);
+    const search = (req.query.search || '').trim();
+    const offset = (page - 1) * limit;
+
+    let query = supabase
       .from('projects')
-      .select('*, owner:owner_id (id, name, email)');
+      .select('*, owner:owner_id (id, name, email)', { count: 'exact' });
+
+    if (search) query = query.ilike('name', `%${search}%`);
+
+    const { data: projects, error, count } = await query
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
     if (error) throw error;
-    res.json(projects);
+    res.json({ projects, total: count ?? 0, page, limit });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
