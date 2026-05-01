@@ -1,17 +1,15 @@
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import { createClient } from '@supabase/supabase-js';
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const { createClient } = require('@supabase/supabase-js');
 
-// ── Supabase client ──────────────────────────────────────────────────────────
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_ANON_KEY,
 );
 
-// ── Auth helper ──────────────────────────────────────────────────────────────
 async function protect(req, res) {
   const authHeader = req.headers.authorization;
-  if (!authHeader?.startsWith('Bearer ')) {
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
     res.status(401).json({ error: 'Not authorized, no token' });
     return null;
   }
@@ -28,7 +26,6 @@ async function protect(req, res) {
   }
 }
 
-// ── History helpers ──────────────────────────────────────────────────────────
 async function recordHistory(taskId, userId, userName, field, oldValue, newValue) {
   try {
     await supabase.from('task_history').insert([{
@@ -45,13 +42,12 @@ async function recordHistory(taskId, userId, userName, field, oldValue, newValue
 async function getUserName(userId) {
   try {
     const { data } = await supabase.from('users').select('name').eq('id', userId).single();
-    return data?.name || 'Unknown';
+    return data ? data.name : 'Unknown';
   } catch {
     return 'Unknown';
   }
 }
 
-// ── Token generator ──────────────────────────────────────────────────────────
 function generateTokens(id) {
   const secret = process.env.JWT_SECRET || 'dev-secret';
   return {
@@ -60,11 +56,12 @@ function generateTokens(id) {
   };
 }
 
-// ── Main handler ─────────────────────────────────────────────────────────────
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   const segments = (Array.isArray(req.query.path) ? req.query.path : [req.query.path])
     .filter(Boolean);
-  const [seg0, seg1, seg2] = segments;
+  const seg0 = segments[0];
+  const seg1 = segments[1];
+  const seg2 = segments[2];
   const method = req.method;
 
   // ── /api/auth/* ────────────────────────────────────────────────────────────
@@ -81,7 +78,7 @@ export default async function handler(req, res) {
           .insert([{ name, email, password: hashedPassword, role: role || 'Member' }])
           .select('id, name, email, role').single();
         if (error) throw error;
-        return res.status(201).json({ ...generateTokens(user.id), user });
+        return res.status(201).json(Object.assign({}, generateTokens(user.id), { user }));
       } catch (e) { return res.status(500).json({ error: e.message }); }
     }
 
@@ -91,7 +88,7 @@ export default async function handler(req, res) {
         const { data: user } = await supabase.from('users').select('*').eq('email', email).single();
         if (user && (await bcrypt.compare(password, user.password))) {
           delete user.password;
-          return res.json({ ...generateTokens(user.id), user });
+          return res.json(Object.assign({}, generateTokens(user.id), { user }));
         }
         return res.status(401).json({ error: 'Invalid email or password' });
       } catch (e) { return res.status(500).json({ error: e.message }); }
@@ -135,7 +132,6 @@ export default async function handler(req, res) {
     const user = await protect(req, res);
     if (!user) return;
 
-    // GET/POST /api/projects
     if (!seg1) {
       if (method === 'GET') {
         const page   = Math.max(1, parseInt(req.query.page)  || 1);
@@ -145,12 +141,12 @@ export default async function handler(req, res) {
         let query = supabase
           .from('projects')
           .select('*, owner:owner_id (id, name, email)', { count: 'exact' });
-        if (search) query = query.ilike('name', `%${search}%`);
+        if (search) query = query.ilike('name', '%' + search + '%');
         const { data: projects, error, count } = await query
           .order('created_at', { ascending: false })
           .range(offset, offset + limit - 1);
         if (error) return res.status(500).json({ error: error.message });
-        return res.json({ projects, total: count ?? 0, page, limit });
+        return res.json({ projects: projects, total: count || 0, page: page, limit: limit });
       }
       if (method === 'POST') {
         const { data: project, error } = await supabase
@@ -163,7 +159,6 @@ export default async function handler(req, res) {
       return res.status(405).end();
     }
 
-    // GET /api/projects/check-name
     if (seg1 === 'check-name') {
       if (method !== 'GET') return res.status(405).end();
       const { name, exclude_id } = req.query;
@@ -177,7 +172,6 @@ export default async function handler(req, res) {
 
     const projectId = seg1;
 
-    // GET/PATCH/DELETE /api/projects/:id
     if (!seg2) {
       if (method === 'GET') {
         const { data: project, error } = await supabase
@@ -208,7 +202,6 @@ export default async function handler(req, res) {
       return res.status(405).end();
     }
 
-    // GET/POST /api/projects/:id/tasks
     if (seg2 === 'tasks') {
       if (method === 'GET') {
         let query = supabase
@@ -219,14 +212,14 @@ export default async function handler(req, res) {
         if (req.query.assignee) query = query.eq('assignee_id', req.query.assignee);
         const { data: tasks, error } = await query;
         if (error) return res.status(500).json({ error: error.message });
-        return res.json({ tasks, total: tasks.length, page: 1, limit: 500 });
+        return res.json({ tasks: tasks, total: tasks.length, page: 1, limit: 500 });
       }
       if (method === 'POST') {
         const { title, description, priority, assignee_id, due_date } = req.body;
         const { data: task, error } = await supabase
           .from('tasks')
-          .insert([{ title, description, priority, status: 'todo', project_id: projectId,
-            assignee_id: assignee_id || null, creator_id: user.id, due_date }])
+          .insert([{ title: title, description: description, priority: priority, status: 'todo',
+            project_id: projectId, assignee_id: assignee_id || null, creator_id: user.id, due_date: due_date }])
           .select('*, assignee:assignee_id(id, name, email), creator:creator_id(id, name, email)')
           .single();
         if (error) return res.status(500).json({ error: error.message });
@@ -237,7 +230,6 @@ export default async function handler(req, res) {
       return res.status(405).end();
     }
 
-    // GET /api/projects/:id/history
     if (seg2 === 'history' && method === 'GET') {
       const limit  = parseInt(req.query.limit)  || 15;
       const offset = parseInt(req.query.offset) || 0;
@@ -246,13 +238,16 @@ export default async function handler(req, res) {
           .from('tasks').select('id, title').eq('project_id', projectId);
         if (taskErr) throw taskErr;
         if (!tasks || tasks.length === 0) return res.json({ history: [], has_more: false });
-        const taskIds = tasks.map(t => t.id);
-        const taskTitleMap = Object.fromEntries(tasks.map(t => [t.id, t.title]));
+        const taskIds = tasks.map(function(t) { return t.id; });
+        const taskTitleMap = {};
+        tasks.forEach(function(t) { taskTitleMap[t.id] = t.title; });
         const { data: history, error: histErr } = await supabase
           .from('task_history').select('*').in('task_id', taskIds)
           .order('created_at', { ascending: false }).range(offset, offset + limit);
         if (histErr) throw histErr;
-        const enriched = (history || []).map(h => ({ ...h, task_title: taskTitleMap[h.task_id] || 'Deleted task' }));
+        const enriched = (history || []).map(function(h) {
+          return Object.assign({}, h, { task_title: taskTitleMap[h.task_id] || 'Deleted task' });
+        });
         return res.json({ history: enriched, has_more: enriched.length > limit });
       } catch (e) {
         if (e.code === 'PGRST205' || e.code === '42P01') return res.json({ history: [], has_more: false });
@@ -260,16 +255,15 @@ export default async function handler(req, res) {
       }
     }
 
-    // GET /api/projects/:id/stats
     if (seg2 === 'stats' && method === 'GET') {
       const { data: tasks, error } = await supabase
         .from('tasks').select('status').eq('project_id', projectId);
       if (error) return res.status(500).json({ error: error.message });
       return res.json({
         total:       tasks.length,
-        done:        tasks.filter(t => t.status === 'done').length,
-        in_progress: tasks.filter(t => t.status === 'in_progress').length,
-        todo:        tasks.filter(t => t.status === 'todo').length,
+        done:        tasks.filter(function(t) { return t.status === 'done'; }).length,
+        in_progress: tasks.filter(function(t) { return t.status === 'in_progress'; }).length,
+        todo:        tasks.filter(function(t) { return t.status === 'todo'; }).length,
       });
     }
 
@@ -282,10 +276,9 @@ export default async function handler(req, res) {
     if (!user) return;
     const taskId = seg1;
 
-    // PATCH/DELETE /api/tasks/:id
     if (!seg2) {
       if (method === 'PATCH') {
-        const updates = { ...req.body };
+        const updates = Object.assign({}, req.body);
         const { data: oldTask } = await supabase
           .from('tasks')
           .select('title, description, status, priority, assignee_id, due_date, creator_id, project_id')
@@ -295,7 +288,7 @@ export default async function handler(req, res) {
         if (user.role !== 'Admin') {
           const isCreator = oldTask.creator_id === user.id;
           const { data: proj } = await supabase.from('projects').select('owner_id').eq('id', oldTask.project_id).single();
-          const isProjectOwner = proj?.owner_id === user.id;
+          const isProjectOwner = proj && proj.owner_id === user.id;
           const statusOnly = Object.keys(updates).length === 1 && updates.status;
           if (!statusOnly && !isCreator && !isProjectOwner)
             return res.status(403).json({ error: 'Not authorized to edit this task' });
@@ -310,9 +303,12 @@ export default async function handler(req, res) {
         if (error) return res.status(500).json({ error: error.message });
 
         const userName = await getUserName(user.id);
-        for (const field of ['title', 'description', 'status', 'priority', 'assignee_id', 'due_date']) {
-          const oldVal = oldTask[field], newVal = updates[field];
-          if (newVal !== undefined && String(oldVal ?? '') !== String(newVal ?? ''))
+        const trackFields = ['title', 'description', 'status', 'priority', 'assignee_id', 'due_date'];
+        for (let i = 0; i < trackFields.length; i++) {
+          const field = trackFields[i];
+          const oldVal = oldTask[field];
+          const newVal = updates[field];
+          if (newVal !== undefined && String(oldVal == null ? '' : oldVal) !== String(newVal == null ? '' : newVal))
             await recordHistory(taskId, user.id, userName, field, oldVal, newVal);
         }
         return res.json(task);
@@ -322,7 +318,10 @@ export default async function handler(req, res) {
         const { data: task } = await supabase
           .from('tasks').select('creator_id, projects!inner(owner_id)').eq('id', taskId).single();
         if (!task) return res.status(404).json({ error: 'Task not found' });
-        if (!task.creator_id === user.id && task.projects.owner_id !== user.id && user.role !== 'Admin')
+        const isCreator      = task.creator_id === user.id;
+        const isProjectOwner = task.projects.owner_id === user.id;
+        const isAdmin        = user.role === 'Admin';
+        if (!isCreator && !isProjectOwner && !isAdmin)
           return res.status(403).json({ error: 'Not authorized.' });
         const { error } = await supabase.from('tasks').delete().eq('id', taskId);
         if (error) return res.status(500).json({ error: error.message });
@@ -331,7 +330,6 @@ export default async function handler(req, res) {
       return res.status(405).end();
     }
 
-    // GET /api/tasks/:id/history
     if (seg2 === 'history' && method === 'GET') {
       try {
         const { data: history, error } = await supabase
@@ -349,4 +347,4 @@ export default async function handler(req, res) {
   }
 
   res.status(404).json({ error: 'Not found' });
-}
+};
